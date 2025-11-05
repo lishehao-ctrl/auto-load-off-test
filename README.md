@@ -18,8 +18,7 @@ Features include frequency sweeps, amplitude/impedance control, auto-range on th
 ## 🔽 Quick Start (Binary, Windows)
 
 1) Install **NI-VISA Runtime** (required), then reboot if prompted.  
-2) (Optional, if you also use Keysight instruments) Install **Keysight IO Libraries Suite** after NI-VISA.  
-3) Download and run `LoadoffTest-<version>-win64.exe` from the **Releases** page.
+1) Download and run `LoadoffTest-<version>-win64.exe` from the **Releases** page.
 
 > Note: The EXE uses PyVISA to talk to the system VISA backend. NI-VISA itself is **not** bundled—users must install it on their machine
 **Verify VISA:**
