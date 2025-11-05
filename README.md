@@ -4,7 +4,6 @@ A Python/Tkinter GUI to control an Arbitrary Waveform Generator (AWG) and an Osc
 Features include frequency sweeps, amplitude/impedance control, auto-range on the scope, plotting, and basic calibration.
 
 ## 🔌 Supported Instruments
-
 **AWGs**
 - Rigol DSG4102
 - Rigol DSG836 *(RF output only; 50 Ω output impedance)*
@@ -15,21 +14,10 @@ Features include frequency sweeps, amplitude/impedance control, auto-range on th
 - Rigol DHO1202
 - Rigol DHO1204
 
+*(Model options match the selectable values defined in `mapping.py`.)* :contentReference[oaicite:0]{index=0}
+
 ## 🔽 Quick Start (Binary, Windows)
+1. Install **NI-VISA Runtime** (required), then reboot if prompted.  
+2. Download `LoadoffTest-<version>-win64.exe` from the **Releases** page and run it.
 
-1) Install **NI-VISA Runtime** (required), then reboot if prompted.  
-1) Download and run `LoadoffTest-<version>-win64.exe` from the **Releases** page.
-
-> Note: The EXE uses PyVISA to talk to the system VISA backend. NI-VISA itself is **not** bundled—users must install it on their machine
-**Verify VISA:**
-
----
-
-## 🛠 Run from Source
-
-### Requirements
-See `requirements.txt` (core libs: pyvisa, numpy, scipy, matplotlib, mplcursors, pyserial, tkinter)
-
-### Run
-```bash
-python main.py
+> The EXE uses PyVISA with the system VISA backend. NI-VISA is **not** bundled; please install it first.
