@@ -6,6 +6,18 @@ Features include frequency sweeps, amplitude/impedance control, auto-range on th
 > Entry point: `main.py` launches the Tkinter UI
 ---
 
+## 🔌 Supported Instruments
+
+**AWGs**
+- Rigol DSG4102
+- Rigol DSG836 *(RF output only; 50 Ω output impedance)*
+
+**Oscilloscopes**
+- Tektronix MDO34
+- Tektronix MDO3024
+- Rigol DHO1202
+- Rigol DHO1204
+
 ## 🔽 Quick Start (Binary, Windows)
 
 1) Install **NI-VISA Runtime** (required), then reboot if prompted.  
