@@ -14,8 +14,7 @@ Features include frequency sweeps, amplitude/impedance control, auto-range on th
 - Rigol DHO1202
 - Rigol DHO1204
 
-*(Model options match the selectable values defined in `mapping.py`.)* :contentReference[oaicite:0]{index=0}
-
+*(Model options match the selectable values defined in `mapping.py`.)*
 ## 🔽 Quick Start (Binary, Windows)
 1. Install **NI-VISA Runtime** (required), then reboot if prompted.  
 2. Download `LoadoffTest-<version>-win64.exe` from the **Releases** page and run it.
