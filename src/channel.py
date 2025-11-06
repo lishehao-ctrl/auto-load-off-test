@@ -586,3 +586,4 @@ class OSC_Channel(ChannelBase):
     def rst(self):
         """复位底层仪器"""
         super().rst()
+
