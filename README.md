@@ -21,5 +21,5 @@ Features include frequency sweeps, amplitude/impedance control, auto-range on th
 > The EXE uses PyVISA with the system VISA backend. NI-VISA is **not** bundled; please install it first.
 
 ### 🎥 Demo Video  
-Click the **image** below to watch a quick demonstration of *LoadoffTest* in action:
+Click the [**image**](https://youtu.be/mykzLSdMx8w) below to watch a quick demonstration of *LoadoffTest* in action:
 [![Watch the video](https://img.youtube.com/vi/mykzLSdMx8w/sddefault.jpg)](https://youtu.be/mykzLSdMx8w?si=-zHm-ErftVF0S7o9)
