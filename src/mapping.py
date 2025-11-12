@@ -2,52 +2,52 @@ from __future__ import annotations
 
 class Mapping:
     # ========================= messages =========================
-    label_for_input_ui                 = "输入控制界面"
-    label_for_file_menu                = "文件"
-    label_for_config_menu              = "设备管理"
-    label_for_device_configure_window  = "高级设置"
-    label_for_exit                     = "退出"
+    label_for_input_ui                 = "Input Control Panel"
+    label_for_file_menu                = "File"
+    label_for_config_menu              = "Device Manager"
+    label_for_device_configure_window  = "Advanced Settings"
+    label_for_exit                     = "Exit"
 
     # ========================= connection =========================
-    label_for_auto_lan                 = "连接模式选择"
-    label_for_visa_address             = "请输入设备visa地址"
-    label_for_ip_address               = "请输入设备ip地址"
+    label_for_auto_lan                 = "Connection Mode"
+    label_for_visa_address             = "VISA address"
+    label_for_ip_address               = "IP address"
     label_for_auto                     = "Auto"
     label_for_lan                      = "LAN"
 
     # ========================= channel =========================
-    label_for_chan_index               = "号通道"
-    label_for_test_chan                = "号被测通道"
-    label_for_ref_chan                 = "号参考通道"
-    label_for_trig_chan                = "号触发通道"
+    label_for_chan_index               = "Channel"
+    label_for_test_chan                = "Test Channel"
+    label_for_ref_chan                 = "Reference Channel"
+    label_for_trig_chan                = "Trigger Channel"
 
     # ========================= awg/osc setting =========================
-    label_for_set_start_frequency      = "起始频率"
-    label_for_set_stop_frequency       = "终止频率"
-    label_for_set_step_freq            = "步长频率"
-    label_for_set_step_num             = "步数数量"
-    label_for_set_center_frequency     = "中心频率"
-    label_for_set_interval_frequency   = "扫描宽度"
-    label_for_log                      = "对数"
-    label_for_freq_unit                = "单位"
-    label_for_points                   = "最大采样数量"
+    label_for_set_start_frequency      = "Start Freq"
+    label_for_set_stop_frequency       = "Stop Freq"
+    label_for_set_step_freq            = "Freq Step"
+    label_for_set_step_num             = "Step Count"
+    label_for_set_center_frequency     = "Center Freq"
+    label_for_set_interval_frequency   = "Span"
+    label_for_log                      = "Log"
+    label_for_freq_unit                = "Unit"
+    label_for_points                   = "Max Samples"
     label_for_freq                     = "Frequency"
-    label_for_set_amp                  = "信号幅度"
-    label_for_set_imp                  = "设置输出阻抗"
+    label_for_set_amp                  = "Amplitude"
+    label_for_set_imp                  = "Impedance"
     label_for_imp_r50                  = "R50"
-    label_for_imp_inf                  = "高阻态"
-    label_for_coup                     = "耦合方式"
-    label_for_yoffset                  = "中心显示电压"
-    label_for_range                    = "满幅电压范围"
-    label_for_auto_range               = "自动"
+    label_for_imp_inf                  = "High-Z"
+    label_for_coup                     = "Coupling Mode"
+    label_for_yoffset                  = "Center Voltage"
+    label_for_range                    = "Full-Scale Voltage"
+    label_for_auto_range               = "Auto"
 
     # ========================= correct/reference =========================
-    label_for_single_chan_correct      = "单通道"
-    label_for_duo_chan_correct         = "双通道"
-    label_for_no_correct               = "不校准"
-    label_for_set_ref                  = "设为参考"
-    label_for_load_ref                 = "读取参考"
-    label_for_enable_ref               = "校准使能"
+    label_for_single_chan_correct      = "Single Channel"
+    label_for_duo_chan_correct         = "Dual Channel"
+    label_for_no_correct               = "No Calibration"
+    label_for_set_ref                  = "Set As Reference"
+    label_for_load_ref                 = "Load Reference"
+    label_for_enable_ref               = "Enable Calibration"
 
     # ========================= figure =========================
     label_for_figure_gain              = "Gain"
@@ -57,23 +57,23 @@ class Mapping:
     label_for_figure_gaindb_freq       = f"{label_for_figure_gain_db}_vs_{label_for_freq}"
 
     # ========================= load/save data =========================
-    label_for_load_file_to_show        = "读数据文件用作显示"
-    label_for_load_file_to_ref         = "读数据文件用作参考"
-    label_for_load_config              = "读取配置文件"
-    label_for_save_file                = "存文件"
-    label_for_save_config              = "存配置"
-    label_for_file_is_saved            = "文件已保存"
+    label_for_load_file_to_show        = "Load data file for display"
+    label_for_load_file_to_ref         = "Load data file as reference"
+    label_for_load_config              = "Load config file"
+    label_for_save_file                = "Save data"
+    label_for_save_config              = "Save config"
+    label_for_file_is_saved            = "File saved"
     label_for_sub_folder_data          = "__data__"
 
     # ========================= errors & titles =========================
-    error_file_not_save                = "数据保存失败！！！"
-    error_fail_auto_save               = "自动保存失败！！！"
-    title_alert                        = "警告"
+    error_file_not_save                = "Failed to save data!!!"
+    error_fail_auto_save               = "Automatic save failed!!!"
+    title_alert                        = "Warning"
 
     # ========================= mappings / options =========================
-    mapping_auto_detect                = "自动识别"
-    label_for_device_type_awg          = "任意波形发生器"
-    label_for_device_type_osc          = "示波器"
+    mapping_auto_detect                = "Auto Detect"
+    label_for_device_type_awg          = "Arbitrary Waveform Generator"
+    label_for_device_type_osc          = "Oscilloscope"
 
     mapping_DSG_4102                   = "DSG4102"
     mapping_DSG_836                    = "DSG836"
@@ -160,9 +160,9 @@ class Mapping:
     mapping_color_for_phase_line       = "tab:red"
 
     # ========================= plot options =========================
-    label_for_mag                      = "幅度"
-    label_for_phase                    = "相位"
-    label_for_mag_and_phase            = "幅度 + 相位"
+    label_for_mag                      = "Magnitude"
+    label_for_phase                    = "Phase"
+    label_for_mag_and_phase            = "Magnitude + Phase"
     values_mag_or_phase                = [label_for_mag, label_for_phase, label_for_mag_and_phase]
 
     # ========================= defaults (UI/fonts/theme) =========================

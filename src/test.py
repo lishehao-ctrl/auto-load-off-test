@@ -13,43 +13,43 @@ from cvtTools import CvtTools
 from mapping import Mapping
 
 class testBase:
-    """测试基类：提供数据队列、停止事件和结果存储"""
+    """Test base class that owns the queue, stop event, and result storage."""
 
     device_num: int  
 
     def __init__(self):
-        """初始化测试基类: 创建数据队列、停止事件和空的结果字典"""
+        """Create the base queue, stop event, and empty result dictionary."""
         self.data_queue = queue.Queue()      
         self.stop_event = threading.Event()   
         self.results = {}                     
 
     def connection_check(self):
-        """检查设备连接, 子类需重写"""
+        """Hook for subclasses to validate instrument connections."""
         pass
   
 class TestLoadOff(testBase):
-    """离线加载测试类: 管理AWG与OSC设备, 存储频率与幅相数据"""
+    """Offline load-off test: manages AWG/OSC devices and stores frequency/magnitude/phase data."""
 
-    # 设备数量
+    # Device count
     device_num = 2
 
     def __init__(self, freq_unit: tk.StringVar):
-        """初始化: 创建AWG与OSC通道, 设置控制变量与初始数据结构"""
+        """Create AWG/OSC channels, control variables, and default data structures."""
         super().__init__()
 
-        # 通道对象
+        # Channel references
         self.awg: AWG_Channel
         self.osc_test: OSC_Channel
         self.osc_ref: OSC_Channel
         self.osc_trig: OSC_Channel
 
-        # 频率单位
+        # Shared frequency unit
         self.freq_unit = freq_unit
 
-        # 自动量程控制
+        # Auto range control
         self.is_auto_osc_range = tk.BooleanVar()
 
-        # 校准模式与开关, 带回调触发
+        # Calibration mode and toggle, both hooked to trace callbacks
         self.var_correct_mode = tk.StringVar(value="")
         self.var_correct_mode.trace_add("write", self.trace_trig_chan_index)
 
@@ -57,14 +57,14 @@ class TestLoadOff(testBase):
         self.is_correct_enabled.trace_add("write", self.refresh_plot)
         self.is_correct_enabled.set(False)
 
-        # 参考文件路径与插值句柄
+        # Reference file path plus interpolation handle
         self.ref_file_save_path: str = None
         self.href_at: Callable = None
 
-        # 触发模式
+        # Trigger mode
         self.trig_mode = tk.StringVar(value="")
 
-        # 图表模式与显示选项, 带回调刷新
+        # Plot mode and visibility options with callbacks
         self.var_mag_or_phase = tk.StringVar(value="")
         self.var_mag_or_phase.trace_add("write", self.refresh_plot)
         self.var_mag_or_phase.set(Mapping.label_for_mag)
@@ -73,10 +73,10 @@ class TestLoadOff(testBase):
         self.figure_mode.trace_add("write", self.show_plot)
         self.figure_mode.set(Mapping.label_for_figure_gain_freq)
 
-        # 自动复位开关
+        # Auto-reset toggle
         self.auto_reset = tk.BooleanVar()      
 
-        # 数据结果存储
+        # Result storage arrays
         self.results = {
             Mapping.mapping_freq            : np.array([]),
             Mapping.mapping_gain_raw        : np.array([]),
@@ -90,12 +90,12 @@ class TestLoadOff(testBase):
 
 
     def trace_trig_chan_index(self, *args):
-        """进入“双通道校准”模式时，让 osc_trig.chan_index 与 osc_ref.chan_index 双向联动"""
+        """Keep osc_trig.chan_index and osc_ref.chan_index synchronized in dual-channel calibration mode."""
         if self.var_correct_mode.get() == Mapping.label_for_duo_chan_correct:
 
             def trig_on_ref(*args):
-                # ref → trig：当 ref 的通道号变化时，把 trig 同步为 ref 的值
-                # 如果两边已经相同，直接返回，避免无意义 set 与回环触发
+                # ref -> trig: when the reference channel changes, mirror it to the trigger.
+                # Skip if they already match to avoid redundant sets and trace loops.
                 if self.osc_ref.chan_index.get() == self.osc_trig.chan_index.get():
                     return
                 try:
@@ -104,8 +104,8 @@ class TestLoadOff(testBase):
                     pass
 
             def ref_on_trig(*args):
-                # trig → ref：当 trig 的通道号变化时，把 ref 同步为 trig 的值
-                # 同样先比较，避免来回 set 造成循环触发
+                # trig -> ref: mirror trigger changes back to the reference channel.
+                # Again, skip when they already match to avoid ping-pong updates.
                 if self.osc_trig.chan_index.get() == self.osc_ref.chan_index.get():
                     return
                 try:
@@ -113,15 +113,15 @@ class TestLoadOff(testBase):
                 except:
                     pass
 
-            # 初次进入模式时，先做一次单向对齐：以 ref 的通道号为准，设置到 trig
+            # Align once when entering the mode by copying ref -> trig.
             self.osc_trig.chan_index.set(self.osc_ref.chan_index.get())
 
-            # 绑定写入监听。注意：trace_add 返回的回调名（cbname）需要在解除时原样传回
+            # Bind the traces; trace_add returns an id that must be reused for removal.
             self.ref_on_trig_id = self.osc_trig.chan_index.trace_add("write", ref_on_trig)
             self.trig_on_ref_id = self.osc_ref.chan_index.trace_add("write", trig_on_ref)
 
         else:
-            # 非“双通道校准”模式：移除上面绑定的两个写入监听，解除联动
+            # Outside dual-channel mode: remove traces to stop the linkage.
             try:
                 self.osc_trig.chan_index.trace_remove("write", self.ref_on_trig_id)
                 self.osc_ref.chan_index.trace_remove("write", self.trig_on_ref_id)
@@ -133,31 +133,31 @@ class TestLoadOff(testBase):
 
         def auto_osc_range_modifier(osc: OSC_Channel, volts: np.ndarray, force_auto: bool = False) -> bool:
             """
-            说明：根据实时波形电压电平，自动微调示波器的量程 (range) 与偏置 (yoffset)。
-            返回 True 表示已经做过一次自动调整 (调用方可选择重测一次); False 表示无需调整。
+            Auto-adjust the oscilloscope range and offset based on the measured waveform.
+            Return True if an adjustment was made (callers may re-measure), otherwise False.
             """
             if not (self.is_auto_osc_range.get() or force_auto):
                 return False
             if volts is None or len(volts) == 0:
                 return False
 
-            # 基本统计量：峰峰值、中心电平
+            # Basic stats: peak-to-peak and midpoint.
             vmax = float(np.max(volts))
             vmin = float(np.min(volts))            
             vpp  = vmax - vmin
             mid  = (vmax + vmin) / 2.0
 
-            # 当前量程（纵轴全幅）
+            # Current full-scale range and offset.
             rng_cur, yofs_cur = osc.get_y()
 
-            # 阈值参数（经验系数）
-            HI_s, LO_s, TARGET_s = 0.8, 0.6, 0.7  # 期望把 vpp/量程 控制在 ~0.7 左右
+            # Threshold parameters (empirical).
+            HI_s, LO_s, TARGET_s = 0.8, 0.6, 0.7  # Keep vpp/range around ~0.7.
 
             ratio = vpp / rng_cur
-            # 偏置相对量程一半的比例（离目标偏置 TARGET_o 的偏差）
+            # Offset deviation relative to half the range.
             yofs_ratio = abs(mid - yofs_cur) / (rng_cur / 2.0)
 
-            # 容差：对 set_y() 与 get_y() 的读回进行容差判断，避免反复抖动
+            # Tolerances for comparing requested vs. readback values.
             RTOL_RANGE = 1e-2
             ATOL_RANGE = 1e-3
             RTOL_OFS   = 1e-2
@@ -166,22 +166,22 @@ class TestLoadOff(testBase):
             upper = yofs_cur + rng_cur * 0.95 / 2.0
             lower = yofs_cur - rng_cur * 0.95 / 2.0
 
-            wave_find  = (lower < vmax < upper) or (upper > vmin > lower)   # 部分在量程内
+            wave_find  = (lower < vmax < upper) or (upper > vmin > lower)   # Partial overlap with range.
 
-            # 优先做偏置居中：DC 耦合且未触边但偏离较大时，尝试把波形中心移到目标偏置附近
+            # First try recentring the offset when DC coupled and the trace is off-center.
             if wave_find and yofs_ratio > 0.2 and osc.coupling.get() == Mapping.mapping_coup_dc:
                 yofs_needed =  mid
                 osc.yoffset.set(str(yofs_needed))
                 osc.set_y()
 
-                # 读回确认偏置是否达标，达标则锁定读回数值
+                # Lock to the readback value when it matches the requested offset.
                 _, yofs_read = osc.get_y()
                 if np.isclose(float(yofs_read), float(yofs_needed), rtol=RTOL_OFS, atol=ATOL_OFS):
                     osc.yoffset.set(str(yofs_read))
                     self.try_re_center = False
                     return True
                 else:
-                    # 未达标：仍把读回值写回 UI 变量，并允许再尝试一次（防止设备分辨率/限位导致的反复）
+                    # Otherwise keep the readback value and allow one retry before warning.
                     osc.yoffset.set(str(yofs_read))
                     if not self.try_re_center:
                         self.try_re_center = True
@@ -190,7 +190,7 @@ class TestLoadOff(testBase):
                         if not self.warning_reach_ofs_lim_shown:
                             messagebox.showwarning(
                                 Mapping.title_alert,
-                                f"{osc.chan_index.get()}号示波器通道超出偏移限制\n自动量程已设置: {yofs_read} V"
+                                f"Scope channel {osc.chan_index.get()} exceeded the offset limit\nAuto range set to: {yofs_read} V"
                             )
                             self.warning_reach_ofs_lim_shown = True
 
@@ -201,7 +201,7 @@ class TestLoadOff(testBase):
 
                 rng_read, _ = osc.get_y()
 
-                # 达标则锁定读回值；否则允许再试一次，失败才告警
+                # Lock to the readback value if it matches; otherwise retry once before warning.
                 if np.isclose(float(rng_read), float(rng_needed), rtol=RTOL_RANGE, atol=ATOL_RANGE):
                     osc.range.set(str(rng_read))
                     self.try_get_target = False
@@ -215,11 +215,11 @@ class TestLoadOff(testBase):
                         if not self.warning_lost_target_shown:
                             messagebox.showwarning(
                                 Mapping.title_alert,
-                                f"{osc.chan_index.get()}号示波器通道无法找到波形\n自动量程已设置: {rng_read} V"
+                                f"Scope channel {osc.chan_index.get()} could not locate the waveform\nAuto range set to: {rng_read} V"
                             )
                             self.warning_lost_target_shown = True
 
-            # 没有触边时，按 vpp/量程 的比例做“精调”，目标 ~0.7
+            # If the waveform fits, fine-tune the span toward ~0.7 of full scale.
             if (ratio > HI_s) or (ratio < LO_s):
                 rng_needed = vpp / TARGET_s
                 osc.range.set(str(rng_needed))
@@ -239,33 +239,33 @@ class TestLoadOff(testBase):
                         if not self.warning_lack_res_shown:
                             messagebox.showwarning(
                                 Mapping.title_alert,
-                                f"{osc.chan_index.get()}号示波器通道超出量程限制\n自动量程已设置: {rng_read} V"
+                                f"Scope channel {osc.chan_index.get()} exceeded range limits\nAuto range set to: {rng_read} V"
                             )
                             self.warning_lack_res_shown = True
 
             return False
         
         def calc_vin_peak(vpp_panel, awg_imp, osc_imp):
-            """说明：根据 AWG 面板幅度 (Vpp) 与阻抗匹配, 估算待测端实际 Vpeak。"""
+            """Estimate the DUT peak voltage from the AWG panel Vpp and the impedance configuration."""
             RS = 50.0
             RL = 50.0 if osc_imp == Mapping.mapping_imp_r50 else 1e6
 
-            # 若 AWG 输出端设置为 50Ω，面板 Vpp 是“端接 50Ω 时”的数值，等效开路电压加倍；
-            # 若 AWG 为“高阻/Hi-Z”标定，面板值就是开路电压。
+            # 50-ohm output means the panel Vpp assumes a matched load, so open-circuit voltage doubles.
+            # Hi-Z output is already the open-circuit voltage.
             if awg_imp == Mapping.mapping_imp_r50: 
                 voc = 2 * vpp_panel
             else:                             
                 voc = vpp_panel
 
-            # 分压到负载的 Vpp
+            # Divider to the load.
             vload = voc * RL / (RS + RL)
 
-            # Vpp -> Vpeak
+            # Convert Vpp to Vpeak.
             vpeak = 0.5 * vload
             return vpeak
             
         def append_result():
-            """说明：把本次频点的测量结果追加到结果数组。"""
+            """Append the current frequency point to the result arrays."""
             self.results[Mapping.mapping_freq]        = np.append(self.results[Mapping.mapping_freq], freq)
             self.results[Mapping.mapping_gain_raw]    = np.append(self.results[Mapping.mapping_gain_raw], gain_raw) 
             self.results[Mapping.mapping_gain_db_raw] = np.append(self.results[Mapping.mapping_gain_db_raw], gain_db_raw)
@@ -274,7 +274,7 @@ class TestLoadOff(testBase):
                 self.results[Mapping.mapping_phase_deg] = np.append(self.results[Mapping.mapping_phase_deg], phase)
 
         def initialize_devices():
-            """说明：按当前模式初始化各设备的 on/imp/coup/trigger 与 y 轴量程"""
+            """Initialize on/imp/coup/trigger settings plus Y-scale based on the current mode."""
             if self.auto_reset.get(): 
                 awg.rst()
                 osc_test.rst()
@@ -296,43 +296,42 @@ class TestLoadOff(testBase):
                 osc_trig.yoffset = tk.StringVar(value=str(offs))
                 osc_trig.set_trig_rise()
 
-            # 先设置耦合，再设置阻抗，避免 UI trace 导致的状态不同步
+            # Set coupling before impedance to avoid trace side effects.
             osc_test.set_coup()
             osc_test.set_imp()
             if self.trig_mode.get() == Mapping.label_for_free_run: 
                 osc_test.set_free_run()
 
         def check_user_input():
-            # 说明：校验用户手动输入的量程/偏置/幅度是否在设备允许范围内，
-            # 若设备读回与期望不一致，则以读回为准并弹出提示。
+            # Validate manual range/offset/amplitude values and fall back to readbacks if needed.
             rng_needed = CvtTools.parse_to_V(osc_test.range.get())
             yofs_needed = CvtTools.parse_to_V(osc_test.yoffset.get())
             osc_test.set_y()
             rng_read, yofs_read = osc_test.get_y()
 
-            # 量程校验（达标则锁定读回；否则写回读回值并告警）
+            # Range validation.
             if np.isclose(rng_read, rng_needed, atol=1e-2, rtol=1e-2):
                 osc_test.range.set(str(rng_read))
             else:
                 osc_test.range.set(str(rng_read))
                 messagebox.showwarning(
                     Mapping.title_alert, 
-                    f"{osc_test.chan_index.get()}号示波器通道超出量程限制\n{Mapping.label_for_range}: {rng_needed} V\n已改成: {rng_read} V"
+                    f"Scope channel {osc_test.chan_index.get()} exceeded the range limit\n{Mapping.label_for_range}: {rng_needed} V\nAdjusted to: {rng_read} V"
                 )
                 self.warning_lack_res_shown = True
 
-            # 偏置校验（达标则锁定读回；否则写回读回值并告警）
+            # Offset validation.
             if np.isclose(yofs_read, yofs_needed, rtol=1e-2, atol=1e-1):
                 osc_test.yoffset.set(str(yofs_read))
             else:
                 osc_test.yoffset.set(str(yofs_read))
                 messagebox.showwarning(
                     Mapping.title_alert,
-                    f"{osc_test.chan_index.get()}号示波器通道超出偏移限制\n{Mapping.label_for_yoffset}: {yofs_needed} V\n已改成: {yofs_read} V"
+                    f"Scope channel {osc_test.chan_index.get()} exceeded the offset limit\n{Mapping.label_for_yoffset}: {yofs_needed} V\nAdjusted to: {yofs_read} V"
                 )
                 self.warning_reach_ofs_lim_shown = True
 
-            # AWG 幅度校验（达标则锁定读回；否则写回读回值并告警）
+            # AWG amplitude validation.
             amp_needed = CvtTools.parse_to_Vpp(awg.amp.get())
             awg.set_amp()
             amp_read = awg.get_amp()
@@ -343,11 +342,11 @@ class TestLoadOff(testBase):
                 awg.amp.set(str(amp_read))
                 messagebox.showwarning(
                     Mapping.title_alert,
-                    f"{awg.chan_index.get()}号信号发生器通道超出幅度限制\n{Mapping.label_for_set_amp}: {amp_needed} Vpp\n已改成: {amp_read}Vpp"
+                    f"AWG channel {awg.chan_index.get()} exceeded the amplitude limit\n{Mapping.label_for_set_amp}: {amp_needed} Vpp\nAdjusted to: {amp_read} Vpp"
                 )
 
 
-        # --- 状态标志初始化 ---
+        # --- Reset status flags ---
         self.warning_lack_res_shown = False
         self.warning_lost_target_shown = False
         self.warning_reach_ofs_lim_shown = False
@@ -362,16 +361,16 @@ class TestLoadOff(testBase):
         osc_trig: OSC_Channel = self.osc_trig
         osc_ref: OSC_Channel = self.osc_ref
 
-        # 频点列表与索引
+        # Frequency sweep points and iterator.
         freq_points = awg.get_sweep_freq_points()
         freq_index = 0
-        # 预设初始频点
+        # Program the initial frequency point.
         awg.set_freq(freq=freq_points[0])
 
         initialize_devices()
         check_user_input()
 
-        # 等待设备稳定
+        # Let the equipment settle.
         time.sleep(0.5)
 
         self.results = {
@@ -403,7 +402,7 @@ class TestLoadOff(testBase):
                 self.warning_freq_out_of_range_shown = True
                 messagebox.showwarning(
                     Mapping.title_alert,
-                    f"频率设置不成功\n目标频率: {freq_points[freq_index]} Hz\n实际频率: {freq} Hz\n程序已停止运行"
+                    f"Failed to set frequency\nTarget: {freq_points[freq_index]} Hz\nActual: {freq} Hz\nTest aborted"
                 )
 
                 if freq in self.results[Mapping.mapping_freq]:
@@ -414,7 +413,7 @@ class TestLoadOff(testBase):
             if not np.isclose(new_amp, CvtTools.parse_to_Vpp(awg.amp.get()), atol=1e-2, rtol=1e-3):
                 messagebox.showwarning(
                     Mapping.title_alert,
-                    f"{awg.chan_index.get()}号信号发生器通道超出幅度限制\n{Mapping.label_for_set_amp}: {CvtTools.parse_to_Vpp(awg.amp.get())} Vpp\n已改成: {new_amp} Vpp"
+                    f"AWG channel {awg.chan_index.get()} exceeded the amplitude limit\n{Mapping.label_for_set_amp}: {CvtTools.parse_to_Vpp(awg.amp.get())} Vpp\nAdjusted to: {new_amp} Vpp"
                 )
                 awg.amp.set(str(awg.get_amp()))
                 self.warning_amp_out_of_range_shown = True
@@ -426,27 +425,27 @@ class TestLoadOff(testBase):
                 points=CvtTools.parse_general_val(osc_test.points.get())
             )
 
-            # ------------------ 无校准分支 ------------------
+            # ------------------ No calibration branch ------------------
             if self.var_correct_mode.get() == Mapping.label_for_no_correct:
-                # 设置 osc x/y 轴
+                # Configure oscilloscope X/Y axes
                 osc_test.set_x(xscale=sampling_time)
                 osc_test.set_y()
 
-                # 根据触发模式采集波形
+                # Acquire waveform according to the trigger mode
                 if self.trig_mode.get() == Mapping.label_for_triggered: 
                     osc_test.trig_measure()
                 elif self.trig_mode.get() == Mapping.label_for_free_run:
                     osc_test.quick_measure()
 
-                # 读回波形： 如果自动量程调整后，重新测量
+                # Read the waveform and rerun if auto-ranging changed settings
                 times, volts = osc_test.read_raw_waveform()
                 if auto_osc_range_modifier(osc=osc_test, volts=volts): 
                     continue
 
-                # 去直流分量
+                # Remove the DC component
                 volts_ac = volts - np.mean(volts)
 
-                # FFT 计算
+                # FFT computation
                 window = np.hanning(len(volts_ac))
                 Vfft   = np.fft.rfft(window * volts_ac)
                 freqs  = np.fft.rfftfreq(len(volts_ac), times[1]-times[0])
@@ -454,7 +453,7 @@ class TestLoadOff(testBase):
                 lo     = max(0, k0 - 2)
                 hi     = min(len(Vfft), k0 + 3)
 
-                # 计算输出输入峰值
+                # Compute output/input peak values
                 Vout_peak = (2/(np.sqrt(np.sum(window**2) * len(volts_ac)))) * np.sqrt(np.sum(abs(Vfft[lo:hi] ** 2)))
                 Vin_peak = calc_vin_peak(
                     vpp_panel=CvtTools.parse_to_Vpp(awg.amp.get()), 
@@ -462,11 +461,11 @@ class TestLoadOff(testBase):
                     osc_imp=osc_test.imp.get()
                 ) 
 
-                # 计算增益（线性与对数）
+                # Compute gain (linear and logarithmic)
                 gain_raw    = Vout_peak / Vin_peak         
                 gain_db_raw = 20.0 * np.log10(np.maximum(gain_raw, 1e-12)) 
 
-                # 计算相位（仅在触发模式下计算）
+                # Compute phase (only in triggered mode)
                 if self.trig_mode.get() == Mapping.label_for_triggered:
                     mags = np.abs(Vfft)
                     if 1 <= k0 <= mags.size-2:
@@ -476,39 +475,39 @@ class TestLoadOff(testBase):
                     df = freqs[1] - freqs[0]
                     f_hat = freqs[k0] + delta * df
 
-                    # 计算相位时，优先用插值后的频率 f_hat 来计算复数谐波分量
+                    # When computing phase, prefer the interpolated frequency f_hat for the complex harmonic
                     X = CvtTools._complex_tone_at(times, volts_ac, f_hat, window)
                     if np.abs(X) < 1e-15:  
                         ang = np.angle(np.sum(Vfft[lo:hi]))
                     else:
                         ang = np.angle(X)
 
-                    # 计算复数增益与相位角
+                    # Compute the complex gain and phase angle
                     Vout_phasor = Vout_peak * np.exp(1j * ang)
                     gain_c = Vout_phasor / Vin_peak
                     phase = np.degrees(np.angle(gain_c))
 
-            # ------------------ 单通道校准分支 ------------------
+            # ------------------ Single-channel calibration branch ------------------
             elif self.var_correct_mode.get() == Mapping.label_for_single_chan_correct:
-                # 设置 osc x/y 轴
+                # Configure oscilloscope X/Y axes
                 osc_test.set_x(xscale=sampling_time)
                 osc_test.set_y()
 
-                # 根据触发模式采集波形
+                # Acquire waveform according to the trigger mode
                 if self.trig_mode.get() == Mapping.label_for_triggered: 
                     osc_test.trig_measure()
                 elif self.trig_mode.get() == Mapping.label_for_free_run:
                     osc_test.quick_measure()
 
-                # 读回波形： 如果自动量程调整后，重新测量
+                # Read the waveform and rerun if auto-ranging changed settings
                 times, volts = osc_test.read_raw_waveform()
                 if auto_osc_range_modifier(osc=osc_test, volts=volts): 
                     continue  
 
-                # 去直流分量
+                # Remove the DC component
                 volts_ac = volts - np.mean(volts)
 
-                # FFT 计算
+                # FFT computation
                 window = np.hanning(len(volts_ac))
                 Vfft   = np.fft.rfft(window * volts_ac)
                 freqs  = np.fft.rfftfreq(len(volts_ac), times[1]-times[0])
@@ -516,7 +515,7 @@ class TestLoadOff(testBase):
                 lo     = max(0, k0 - 2)
                 hi     = min(len(Vfft), k0 + 3)
 
-                # 计算输出输入峰值
+                # Compute output/input peak values
                 Vout_peak = (2/(np.sqrt(np.sum(window**2) * len(volts_ac)))) * np.sqrt(np.sum(abs(Vfft[lo:hi] ** 2)))
                 Vin_peak = calc_vin_peak(
                     vpp_panel=CvtTools.parse_to_Vpp(awg.amp.get()), 
@@ -524,11 +523,11 @@ class TestLoadOff(testBase):
                     osc_imp=osc_test.imp.get()
                 ) 
 
-                # 计算增益（线性与对数）
+                # Compute gain (linear and logarithmic)
                 gain_raw    = Vout_peak / Vin_peak         
                 gain_db_raw = 20.0 * np.log10(np.maximum(gain_raw, 1e-12))
 
-                # 计算相位（仅在触发模式下计算）
+                # Compute phase (only in triggered mode)
                 if self.trig_mode.get() == Mapping.label_for_triggered:
                     mags = np.abs(Vfft)
                     if 1 <= k0 <= mags.size-2:
@@ -538,33 +537,33 @@ class TestLoadOff(testBase):
                     df = freqs[1] - freqs[0]
                     f_hat = freqs[k0] + delta * df
 
-                    # 计算相位时，优先用插值后的频率 f_hat 来计算复数谐波分量
+                    # When computing phase, prefer the interpolated frequency f_hat for the complex harmonic
                     X = CvtTools._complex_tone_at(times, volts_ac, f_hat, window)
                     if np.abs(X) < 1e-15:
                         ang = np.angle(np.sum(Vfft[lo:hi]))
                     else:
                         ang = np.angle(X)
 
-                    # 计算复数增益与相位角
+                    # Compute the complex gain and phase angle
                     Vout_phasor = Vout_peak * np.exp(1j * ang)
                     gain_c = Vout_phasor / Vin_peak
                     phase = np.degrees(np.angle(gain_c))
 
-            # ------------------ 双通道校准分支 ------------------
+            # ------------------ Dual-channel calibration branch ------------------
             elif self.var_correct_mode.get() == Mapping.label_for_duo_chan_correct:
-                # 设置 osc x/y 轴
+                # Configure oscilloscope X/Y axes
                 osc_test.set_x(xscale=sampling_time)
                 osc_test.set_y()
                 osc_ref.set_x(xscale=sampling_time)
                 osc_ref.set_y()
 
-                # 根据触发模式采集波形
+                # Acquire waveform according to the trigger mode
                 if self.trig_mode.get() == Mapping.label_for_triggered: 
                     osc_test.trig_measure() 
                 elif self.trig_mode.get() == Mapping.label_for_free_run:
                     osc_test.quick_measure()
 
-                # 读回波形：如果自动量程调整后，重新测量
+                # Read the waveform and rerun if auto-ranging changed settings
                 times_t, volts_t = osc_test.read_raw_waveform()
                 if auto_osc_range_modifier(osc=osc_test, volts=volts_t): 
                     continue
@@ -572,11 +571,11 @@ class TestLoadOff(testBase):
                 if auto_osc_range_modifier(osc=osc_ref, volts=volts_r, force_auto=True): 
                     continue
 
-                # 去直流分量
+                # Remove the DC component
                 volts_ac_t = volts_t - np.mean(volts_t)
                 volts_ac_r = volts_r - np.mean(volts_r)
 
-                # FFT 计算
+                # FFT computation
                 window_t = np.hanning(len(volts_ac_t))
                 window_r = np.hanning(len(volts_ac_r))
 
@@ -603,7 +602,7 @@ class TestLoadOff(testBase):
                 mag_ratio = max(mag_t / max(mag_r, 1e-15), 1e-15)  
                 dphi = Ph_t - Ph_r
 
-                # 计算复数增益与相位角
+                # Compute the complex gain and phase angle
                 gain_c = mag_ratio * (np.cos(dphi) + 1j*np.sin(dphi))
                 gain_raw    = np.abs(gain_c)
                 gain_db_raw = 20.0 * np.log10(np.maximum(gain_raw, 1e-12))  
@@ -616,11 +615,11 @@ class TestLoadOff(testBase):
                 df_r = freqs_r[1] - freqs_r[0]
                 f_hat = freqs_r[k0_r] + delta_r * df_r
 
-                # 计算相位时，优先用插值后的频率 f_hat 来计算复数谐波分量
+                # When computing phase, prefer the interpolated frequency f_hat for the complex harmonic
                 Xt = CvtTools._complex_tone_at(times_t, volts_ac_t, f_hat, window_t)
                 Xr = CvtTools._complex_tone_at(times_r, volts_ac_r, f_hat, window_r)
                 if (np.abs(Xt) < 1e-15) or (np.abs(Xr) < 1e-15):
-                    # 回退方法
+                    # Fallback method
                     Ph_t = np.angle(np.sum(Vfft_t[lo_t:hi_t]))
                     Ph_r = np.angle(np.sum(Vfft_r[lo_r:hi_r]))
                     S_t = mag_t * np.exp(1j*Ph_t)
@@ -630,7 +629,7 @@ class TestLoadOff(testBase):
                     Sxy = Xt * np.conj(Xr)
                     phase = np.degrees(np.angle(Sxy))  
 
-            # 追加结果
+            # Append the result
             append_result()
 
             self.data_queue.put(freq)
@@ -640,20 +639,20 @@ class TestLoadOff(testBase):
 
 
     def connection_check(self):
-        """检查设备连接"""
-        # 如果选择了“无校准”模式，只检查 AWG 与被测通道
+        """Verify instrument connectivity based on the current calibration/trigger mode."""
+        # No calibration: only AWG and the DUT channel.
         if self.var_correct_mode.get() == Mapping.label_for_no_correct:
             self.awg.inst_open()
             self.awg.check_open()
             self.osc_test.inst_open()
             self.osc_test.check_open()
-        # 如果选择了“单通道校准”模式，只检查 AWG 与被测通道
+        # Single-channel calibration: still AWG + DUT channel.
         elif self.var_correct_mode.get() == Mapping.label_for_single_chan_correct:
             self.awg.inst_open()
             self.awg.check_open()
             self.osc_test.inst_open()
             self.osc_test.check_open()
-        # 如果选择了“双通道校准”模式，检查 AWG、被测通道、参考通道
+        # Dual-channel calibration: AWG, DUT channel, and reference channel.
         elif self.var_correct_mode.get() == Mapping.label_for_duo_chan_correct:
             self.awg.inst_open()
             self.awg.check_open()
@@ -662,31 +661,31 @@ class TestLoadOff(testBase):
             self.osc_ref.inst_open()
             self.osc_ref.check_open()
 
-        # 如果选择了“触发模式”，检查触发通道
+        # Triggered mode: also ensure the trigger channel is reachable.
         if self.trig_mode.get() == Mapping.label_for_triggered:
             self.osc_trig.inst_open()
             self.osc_trig.check_open()
         
     def cal_sampling_time(self, freq, device_sr, points, *, T_MIN=1e-6, N_CYC=10, PTS_MAX=1e7):
-        """说明：计算示波器采样时间基准。返回值单位为秒(s)。"""
-        f = max(float(freq), 1e-12)  # 防止除零
-        # 三个候选值取最大：保证足够长
+        """Compute the oscilloscope sampling window length in seconds."""
+        f = max(float(freq), 1e-12)  # Avoid divide-by-zero.
+        # Choose the longest of the candidates to ensure sufficient duration.
         T = max(points/device_sr, N_CYC/f, T_MIN)
-        # 如果设备有点数上限，做一个夹紧
+        # Clamp if the device has a point-count limit.
         if PTS_MAX:
             T = min(T, PTS_MAX/device_sr)
 
         return T
 
     def setup_plots(self, frame: tk.Frame):
-        """说明：创建并初始化两个图表的 Figure、Axes、Line2D、Canvas 等对象，并放置在指定的 frame 里。"""
+        """Build the gain/phase figures, axes, artists, and canvases in the provided frame."""
 
         self.frame_plot = tk.Frame(frame)
         self.frame_plot.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         freq_unit = self.freq_unit.get()
 
-        # === 线性增益图 ===
+        # === Linear gain plot ===
         self.fig_gain = Figure(figsize=(8, 4))
         try:
             self.fig_gain.set_tight_layout(True)
@@ -697,16 +696,16 @@ class TestLoadOff(testBase):
         self.ax_gain.set_ylabel(Mapping.label_for_figure_gain)
         (self.line_gain,) = self.ax_gain.plot([], [], linestyle='-')
 
-        # 线性增益图右轴：相位
+        # Linear plot right axis: phase.
         self.ax_gain_right = self.ax_gain.twinx() 
         self.ax_gain_right.set_ylabel(Mapping.label_for_figure_phase) 
         (self.line_phase,) = self.ax_gain_right.plot([], [], linestyle=':', color=Mapping.mapping_color_for_phase_line)
 
         self.canvas_gain = FigureCanvasTkAgg(self.fig_gain, master=self.frame_plot)
         w = self.canvas_gain.get_tk_widget()
-        w.bind("<FocusIn>", lambda e:'break') # 禁止 matplotlib 图表获取焦点，避免与 Tkinter 的键盘快捷键冲突
+        w.bind("<FocusIn>", lambda e:'break') # Prevent matplotlib widgets from stealing Tk shortcuts.
 
-        # === 对数增益图 ===
+        # === Log gain plot ===
         self.fig_db = Figure(figsize=(8, 4))
         try:
             self.fig_db.set_tight_layout(True)
@@ -717,27 +716,27 @@ class TestLoadOff(testBase):
         self.ax_db.set_ylabel(Mapping.label_for_figure_gain_db)
         (self.line_db,) = self.ax_db.plot([], [], linestyle='-')
 
-        # 对数增益图右轴：相位
+        # Log plot right axis: phase.
         self.ax_db_right = self.ax_db.twinx() 
         self.ax_db_right.set_ylabel(Mapping.label_for_figure_phase) 
         (self.line_phase_db,) = self.ax_db_right.plot([], [], linestyle=':', color=Mapping.mapping_color_for_phase_line)
 
         self.canvas_db = FigureCanvasTkAgg(self.fig_db, master=self.frame_plot)
         w = self.canvas_db.get_tk_widget()
-        w.bind("<FocusIn>", lambda e:'break') # 禁止 matplotlib 图表获取焦点，避免与 Tkinter 的键盘快捷键冲突
+        w.bind("<FocusIn>", lambda e:'break') # Prevent matplotlib widgets from stealing Tk shortcuts.
 
         self.canvas_gain.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-        # 游标交互
+        # Cursor interactions
         mplcursors.cursor([self.line_gain, self.line_phase, self.line_db, self.line_phase_db], hover=True)
 
-        # 初始显示
+        # Initial render
         self.refresh_plot()
 
     def show_plot(self, *args):
-        """说明：根据当前 figure_mode 变量，显示对应的图表。"""
+        """Show the plot that matches the current figure_mode variable."""
         try:
-            # 切换显示
+            # Toggle visibility
             if self.figure_mode.get() == Mapping.label_for_figure_gain_freq:
                 self.canvas_db.get_tk_widget().pack_forget()
                 self.canvas_gain.get_tk_widget().pack(fill=tk.BOTH, expand=True)
@@ -745,17 +744,17 @@ class TestLoadOff(testBase):
                 self.canvas_gain.get_tk_widget().pack_forget()
                 self.canvas_db.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-            # 刷新图表
+            # Refresh plot contents
             self.refresh_plot()
         except:
             pass
 
     def refresh_plot(self, *args):
-        """说明：根据当前数据与设置，刷新图表内容。"""
+        """Refresh the figures based on the latest data and settings."""
 
         def get_gain_corr():
-            """说明：计算校准后的增益与相位数据，存入 results 的对应字段。"""
-            # 无校准时，校准数据直接等于原始数据
+            """Compute calibrated gain/phase data and store them in results."""
+            # Without calibration the corrected data equals the raw data.
             if not (self.is_correct_enabled.get() and hasattr(self, "href_at") and self.href_at):
                 self.results[Mapping.mapping_gain_corr] = self.results[Mapping.mapping_gain_raw]
                 self.results[Mapping.mapping_gain_db_corr] = self.results[Mapping.mapping_gain_db_raw]
@@ -763,8 +762,7 @@ class TestLoadOff(testBase):
                 return
 
             href_vals = self.href_at(self.results[Mapping.mapping_freq])
-            # 如果是“双通道校准”或“触发模式”，则用复数除法计算校准后的增益与相位；
-            # 否则用幅值除法计算校准后的增益。
+            # Dual-channel calibration or triggered mode uses complex division; otherwise magnitude only.
             if self.var_correct_mode.get() == Mapping.label_for_duo_chan_correct or self.trig_mode.get() == Mapping.label_for_triggered:
                 href_vals = np.array(href_vals, dtype=np.complex128)
                 H_corr = self.results[Mapping.mapping_gain_complex] / href_vals
@@ -778,48 +776,47 @@ class TestLoadOff(testBase):
                 self.results[Mapping.mapping_gain_db_corr] = np.round(20*np.log10(np.maximum(self.results[Mapping.mapping_gain_corr], eps)), 6)
 
         def switch_mag_phase():
-            """说明：根据当前 figure_mag_or_phase 变量，切换各条曲线的显隐状态。"""
-            # 如果是“增益 + 相位”模式，四条曲线都显示；
+            """Toggle which curves are visible according to figure_mag_or_phase."""
+            # Gain + phase: show all four curves.
             if self.var_mag_or_phase.get() == Mapping.label_for_mag_and_phase:
                 self.line_gain.set_visible(True)
                 self.line_phase.set_visible(True)
                 self.line_db.set_visible(True)
                 self.line_phase_db.set_visible(True)
-            # 如果是“增益”模式，只显示增益曲线；
+            # Gain only: hide both phase curves.
             elif self.var_mag_or_phase.get() == Mapping.label_for_mag:
                 self.line_gain.set_visible(True)
                 self.line_phase.set_visible(False)
                 self.line_db.set_visible(True)
                 self.line_phase_db.set_visible(False)
-            # 如果是“相位”模式，只显示相位曲线；
+            # Phase only: hide both magnitude curves.
             elif self.var_mag_or_phase.get() == Mapping.label_for_phase:
                 self.line_gain.set_visible(False)
                 self.line_phase.set_visible(True)
                 self.line_db.set_visible(False)
                 self.line_phase_db.set_visible(True)
 
-        # 更新各条曲线的数据
+        # Update line data
         try:
             freq_unit = self.freq_unit.get()
             get_gain_corr()
             switch_mag_phase()
 
-            # 更新线性增益曲线数据，并自动调整坐标轴
+            # Update the linear gain data and axes.
             self.line_gain.set_data(
                 self.results[Mapping.mapping_freq]/CvtTools.convert_general_unit(freq_unit),
                 self.results[Mapping.mapping_gain_corr] if self.is_correct_enabled.get() else self.results[Mapping.mapping_gain_raw]
             )
             self.ax_gain.set_xlabel(f"{Mapping.label_for_freq}({freq_unit})")
             
-
-            # 更新对数增益曲线数据，并自动调整坐标轴
+            # Update the log gain data and axes.
             self.line_db.set_data(
                 self.results[Mapping.mapping_freq]/CvtTools.convert_general_unit(freq_unit),
                 self.results[Mapping.mapping_gain_db_corr] if self.is_correct_enabled.get() else self.results[Mapping.mapping_gain_db_raw]
             )
             self.ax_db.set_xlabel(f"{Mapping.label_for_freq}({freq_unit})")
 
-            # 如果是“双通道校准”或“触发模式”，并且有相位数据，则更新相位曲线数据，并自动调整坐标轴
+            # Update phase traces when dual-channel/triggered data is available.
             if self.results[Mapping.mapping_phase_deg].size and (self.var_correct_mode.get() == Mapping.label_for_duo_chan_correct or self.trig_mode.get() == Mapping.label_for_triggered):
                 self.line_phase.set_data(
                     self.results[Mapping.mapping_freq]/CvtTools.convert_general_unit(freq_unit),
@@ -839,7 +836,7 @@ class TestLoadOff(testBase):
             self.ax_gain_right.relim(); self.ax_gain_right.autoscale_view()
             self.ax_db_right.relim(); self.ax_db_right.autoscale_view()
 
-            # 切换显示
+            # Redraw whichever canvas is currently visible.
             if self.figure_mode.get() == Mapping.label_for_figure_gain_freq:
                 self.canvas_gain.draw_idle()
             elif self.figure_mode.get() == Mapping.label_for_figure_gaindb_freq:

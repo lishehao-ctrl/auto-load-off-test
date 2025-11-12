@@ -1,4 +1,4 @@
-# 运行环境
+# Environment setup notes
 # cd C:\Users\15038\Desktop\HardWare\mm_report 
 # python -m venv venv
 # .\venv\Scripts\Activate.ps1
@@ -189,7 +189,7 @@ class bATEinst_base(object):
             cc = cc.strip()
             if not cc:
                 continue
-            # 占位符替换：将 $CHX$ 替换为传入的通道字符串
+            # Replace the $CHX$ placeholder with the provided channel string.
             cc = cc.replace("$CHX$", chx)
             if re.match(r"\$WAIT *= *(\d+) *\$",cc):
                 self.delay(int(re.match(r"\$WAIT *= *(\d+) *\$", cc).group(1))/1000)
@@ -220,19 +220,19 @@ class bATEinst_base(object):
                 hd, _ = os.path.split(os.path.realpath(__file__))
 
             if sub_folder is None:
-                # 没有 sub_folder，也没有 fn → 就是程序目录
+                # No sub_folder and no fn means use the program directory.
                 path = hd if fn is None else os.path.join(hd, fn)
             else:
-                # 先拼子目录
+                # Build the subdirectory path first.
                 folder = os.path.join(hd, sub_folder)
                 if fn is None:
-                    path = folder   # 只要文件夹路径
+                    path = folder   # Just return the folder path.
                 else:
                     path = os.path.join(folder, fn)
 
             path = os.path.realpath(path)
 
-            # 如果是文件 → 确保父目录存在；如果是目录 → 确保自己存在
+            # Ensure parents exist for files, or create the directory itself.
             if fn is None:
                 os.makedirs(path, exist_ok=True)
             else:
@@ -270,24 +270,24 @@ class bATEinst_base(object):
     
     def save_matfile(self, fn, mm):        
         try:
-            # 先检查mm的数据类型（新增：提前排查格式问题）
+            # Pre-check the data types to catch format issues early.
             # self._check_mat_data(mm)
-            # 执行保存
+            # Perform the save.
             savemat(fn, mm)
             return True
         except Exception as e:
-            # 打印详细错误（关键：定位问题）
-            print(f"mat文件保存失败：{str(e)}")
-            print("错误堆栈：\n", traceback.format_exc())
+            # Log detailed errors to aid troubleshooting.
+            print(f"Failed to save MAT file: {str(e)}")
+            print("Traceback:\n", traceback.format_exc())
             return False
         
     def _check_mat_data(self, data_dict):
         for key, value in data_dict.items():
             if isinstance(value, (list, np.ndarray)):
-                # 检查列表/数组是否有混合类型
+                # Check whether the list/array mixes types.
                 types = set(type(x) for x in value) if isinstance(value, list) else {value.dtype.type}
                 if len(types) > 1:
-                    raise ValueError(f"数据'{key}'包含混合类型：{types}，无法保存为mat文件")
+                    raise ValueError(f"Data '{key}' mixes types {types} and cannot be stored in a MAT file")
 
 class InstrumentBase(bATEinst_base):
 
@@ -305,9 +305,9 @@ class InstrumentBase(bATEinst_base):
     @staticmethod
     def normalize_imp_str(imp) -> str:
         """
-        将多种用户输入形式规范为驱动可识别的阻抗字符串。
-        - 接受: "50", "INF", "HiZ"/"hiz"/"HIZ" 等
-        - 返回: 规范化后的字符串（"50" 或 "INF" 等）
+        Normalize user input so the driver always receives a canonical impedance string.
+        - Accepts: "50", "INF", "HiZ"/"hiz"/"HIZ", etc.
+        - Returns: normalized strings such as "50" or "INF".
         """
         if imp is None:
             return None
@@ -411,7 +411,7 @@ class instMM(InstrumentBase):
     chan_num = 2
 
     # alert messages
-    alert_incompatible_mode = '模式不符合要求'
+    alert_incompatible_mode = 'Mode is not supported'
 
     def __init__(self, name="", visa_address=""):
         super().__init__(name, visa_address)
@@ -523,10 +523,10 @@ class instOSC_DS1104(InstrumentBase):
         )
     
     def measure(self):
-        # 停止-单次采集，并等待触发停止
+        # Stop -> single acquisition and wait for the trigger to complete.
         self.x_write([":STOP", "*OPC?", "SING", "$WAIT=1$"])
         t0 = time.time()
-        # 轮询最多 20s，直到状态为 STOP
+        # Poll for up to 20 seconds until the scope reports STOP.
         while time.time() - t0 < 20.0:
             try:
                 stat = self.query(":TRIG:STAT?").strip()
@@ -945,7 +945,7 @@ class instOSC_DHO1202(instOSC):
 
     def set_x(self, xscale: float, xoffset: float = None):
         """
-        设置水平时基（秒/格）与水平偏移（秒）。
+        Configure horizontal scale (seconds/div) and optional horizontal offset.
         """
         cmds = []
         if xscale is not None:
@@ -958,7 +958,7 @@ class instOSC_DHO1202(instOSC):
 
     def set_y(self, ch: int, yscale: float, yoffset: float = None):
         """
-        设置垂直刻度（伏/格）与垂直偏移（伏）。
+        Configure vertical scale (volts/div) and vertical offset.
         """
         cmds = []
         if yscale is not None:
@@ -971,7 +971,7 @@ class instOSC_DHO1202(instOSC):
 
     def get_y(self, ch: int):
         """
-        读取当前通道的（垂直刻度, 垂直偏移），单位分别为 V/div 与 V。
+        Read the current channel's (vertical scale, vertical offset) in V/div and volts.
         """
         scale = float(self.x_write(f":CHANnel{ch}:SCALe?")[0].strip())
         offs  = float(self.x_write(f":CHANnel{ch}:OFFSet?")[0].strip())
@@ -979,7 +979,7 @@ class instOSC_DHO1202(instOSC):
 
     def get_sample_rate(self) -> int:
         """
-        读取当前采样率，单位为 Hz。
+        Read the current sample rate in Hz.
         """
         sr = float(self.query(":ACQuire:SRATe?"))             
         self.sampling_rate = int(sr)
@@ -988,7 +988,7 @@ class instOSC_DHO1202(instOSC):
 
     def trig_measure(self):
         """
-        触发测量模式
+        Triggered acquisition mode.
         """
         self.x_write(["*CLS", ":STOP", ":SINGle"])
 
@@ -1004,7 +1004,7 @@ class instOSC_DHO1202(instOSC):
 
     def quick_measure(self):
         """
-        快速测量模式
+        Quick acquisition mode.
         """
         self.x_write([
             "*CLS",                         
@@ -1015,17 +1015,17 @@ class instOSC_DHO1202(instOSC):
         t0 = time.time()
         while time.time() - t0 < 2.0:
             try:
-                if self.query(":TRIGger:STATus?").strip().upper() == "WAIT":  # 等待触发
+                if self.query(":TRIGger:STATus?").strip().upper() == "WAIT":  # Waiting for trigger
                     break
             except Exception:
                 pass
             time.sleep(0.05)
 
-        # 轮询等待采集完成
+        # Poll until the acquisition finishes.
         t0 = time.time()
         while time.time() - t0 < 15.0:
             try:
-                if self.query(":TRIGger:STATus?").strip().upper() == "STOP":  # 采集完成
+                if self.query(":TRIGger:STATus?").strip().upper() == "STOP":  # Acquisition complete
                     break
             except Exception:
                 pass
@@ -1033,7 +1033,7 @@ class instOSC_DHO1202(instOSC):
 
     def read_raw_waveform(self, ch: int, points: int):
         """
-        读取指定通道的原始波形数据，并转换为时间和电压
+        Read the raw waveform from a channel and convert it to time/voltage arrays.
         """
 
         time.sleep(0.2)
@@ -1072,14 +1072,14 @@ class instOSC_DHO1202(instOSC):
 
     def set_free_run(self):
         """
-        自由滚动（不等触发也运行）。等价“Trigger Sweep = AUTO”
+        Enable free-run mode (trigger sweep AUTO).
         """
-        # 设为自动扫描；是否立即运行交由上层控制（RUN/SINGle）
+        # Switch to auto sweep; RUN/SINGle is controlled by the caller.
         self.x_write([":TRIGger:SWEep AUTO", "*OPC?"])
 
     def set_trig_rise(self, ch: int, level: float):
         """
-        设置上升沿触发：指定触发源通道与电平（单位：V），并切到 NORM 等待触发
+        Configure rising-edge triggering: source channel, level (V), and NORM sweep.
         """
         cmds = [
             f":TRIGger:EDGE:SOURce CHANnel{ch}",
@@ -1091,15 +1091,15 @@ class instOSC_DHO1202(instOSC):
         self.x_write(cmds)
 
     def set_on(self, ch: int):
-        """打开通道显示/输入"""
+        """Enable channel display/input."""
         self.x_write([f":CHANnel{ch}:DISPlay ON", "*OPC?"])
 
     def set_imp(self, imp: str, ch: int):
-        """DHO1000 系列仅支持 1M"""
+        """DHO1000 series only supports 1 MΩ."""
         pass
 
     def set_coup(self, coup: str, ch: int):
-        """设置耦合模式：AC / DC"""
+        """Set coupling mode: AC / DC."""
         self.x_write([f":CHANnel{ch}:COUPling {coup}", "*OPC?"])
 
     def rst(self):
@@ -1111,7 +1111,7 @@ class instOSC_DHO1204(instOSC):
 
     def set_x(self, xscale: float, xoffset: float = None):
         """
-        设置水平时基（秒/格）与水平偏移（秒）。
+        Configure horizontal scale (seconds/div) and optional offset.
         """
         cmds = []
         if xscale is not None:
@@ -1124,7 +1124,7 @@ class instOSC_DHO1204(instOSC):
 
     def set_y(self, ch: int, yscale: float, yoffset: float = None):
         """
-        设置垂直刻度（伏/格）与垂直偏移（伏）。
+        Configure vertical scale (volts/div) and vertical offset.
         """
         cmds = []
         if yscale is not None:
@@ -1137,7 +1137,7 @@ class instOSC_DHO1204(instOSC):
 
     def get_y(self, ch: int):
         """
-        读取当前通道的（垂直刻度, 垂直偏移），单位分别为 V/div 与 V。
+        Read the channel's vertical scale (V/div) and offset (V).
         """
         scale = float(self.x_write(f":CHANnel{ch}:SCALe?")[0].strip())
         offs  = float(self.x_write(f":CHANnel{ch}:OFFSet?")[0].strip())
@@ -1145,7 +1145,7 @@ class instOSC_DHO1204(instOSC):
 
     def get_sample_rate(self) -> int:
         """
-        读取当前采样率，单位为 Hz。
+        Read the current sampling rate in Hz.
         """
         sr = float(self.query(":ACQuire:SRATe?"))             
         self.sampling_rate = int(sr)
@@ -1153,7 +1153,7 @@ class instOSC_DHO1204(instOSC):
 
     def trig_measure(self):
         """
-        触发测量模式
+        Triggered acquisition mode.
         """
         self.x_write(["*CLS", ":STOP", ":SINGle"])
 
@@ -1168,7 +1168,7 @@ class instOSC_DHO1204(instOSC):
 
     def quick_measure(self):
         """
-        快速测量模式
+        Quick acquisition mode.
         """
         self.x_write([
             "*CLS",                         
@@ -1179,20 +1179,20 @@ class instOSC_DHO1204(instOSC):
         t0 = time.time()
         while time.time() - t0 < 2.0:
             try:
-                if self.query(":TRIGger:STATus?").strip().upper() == "WAIT":  # 等待触发
+                if self.query(":TRIGger:STATus?").strip().upper() == "WAIT":  # Waiting for trigger
                     break
             except Exception:
                 pass
             time.sleep(0.05)
 
-        # 强制触发一次
+        # Force a trigger once.
         self.x_write([":TFORce"])
 
-        # 轮询等待采集完成
+        # Poll until acquisition finishes.
         t0 = time.time()
         while time.time() - t0 < 15.0:
             try:
-                if self.query(":TRIGger:STATus?").strip().upper() == "STOP":  # 采集完成
+                if self.query(":TRIGger:STATus?").strip().upper() == "STOP":  # Acquisition complete
                     break
             except Exception:
                 pass
@@ -1200,7 +1200,7 @@ class instOSC_DHO1204(instOSC):
 
     def read_raw_waveform(self, ch: int, points: int):
         """
-        读取指定通道的原始波形数据，并转换为时间和电压
+        Read raw waveform data for a channel and convert to time/voltage.
         """
 
         time.sleep(0.2)
@@ -1239,14 +1239,14 @@ class instOSC_DHO1204(instOSC):
 
     def set_free_run(self):
         """
-        自由滚动（不等触发也运行）。等价“Trigger Sweep = AUTO”
+        Enable free-run mode (Trigger Sweep = AUTO).
         """
-        # 设为自动扫描；是否立即运行交由上层控制（RUN/SINGle）
+        # Switch to auto sweep; RUN/SINGle is controlled externally.
         self.x_write([":TRIGger:SWEep AUTO", "*OPC?"])
 
     def set_trig_rise(self, ch: int, level: float):
         """
-        设置上升沿触发：指定触发源通道与电平（单位：V），并切到 NORM 等待触发
+        Configure rising-edge triggering: choose source channel/level (V) and use NORM sweep.
         """
         cmds = [
             f":TRIGger:EDGE:SOURce CHANnel{ch}",
@@ -1258,15 +1258,15 @@ class instOSC_DHO1204(instOSC):
         self.x_write(cmds)
 
     def set_on(self, ch: int):
-        """打开通道显示/输入"""
+        """Enable the channel display/input."""
         self.x_write([f":CHANnel{ch}:DISPlay ON", "*OPC?"])
 
     def set_imp(self, imp: str, ch: int):
-        """DHO1000 系列仅支持 1M"""
+        """DHO1000 series only supports 1 MΩ."""
         pass
 
     def set_coup(self, coup: str, ch: int):
-        """设置耦合模式：AC / DC"""
+        """Set coupling mode: AC / DC."""
         self.x_write([f":CHANnel{ch}:COUPling {coup}", "*OPC?"])
 
     def rst(self):
@@ -1327,7 +1327,7 @@ class instAWG_DSG836(instAWG):
         self.x_write([f":LEV {amp}V", "*OPC?"])
     
     def set_on(self, on=True, ch=None):
-        # DSG836 为单通道设备，忽略 ch；保留 on/off 控制
+        # DSG836 is single-channel; ignore ch but keep the on/off flag.
         self.x_write([":OUTP %d" % (1 if on else 0), "*OPC?"])
         
     def set_lf_freq(self, freq):
@@ -1367,7 +1367,7 @@ class instAWG_DSG836(instAWG):
     def set_imp(self, imp = None, ch=None):
         pass
 
-    # 移除重复的无参版本，统一使用上面的 set_on(on=True, ch=None)
+    # Remove redundant parameter-less versions; always call set_on(on=True, ch=None).
 
 class instAWG_DG4102(instAWG):
     Model_Supported = ["DG4102"]

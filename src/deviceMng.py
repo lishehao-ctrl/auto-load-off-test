@@ -9,32 +9,32 @@ import equips
 class DeviceManager:
 
     class device_info:
-        """功能：单台设备的信息与通道管理（名称/地址/通道集合/联动）"""
+        """Single-device metadata: name/address, channel collection, and linkage helpers."""
     
         def __init__(self, device_index: int, freq_unit: tk.StringVar):
-            """关键属性: 设备序号、UI 频率单位、通道数量与上限"""
+            """Key attributes: device index, UI frequency unit, channel count, and max channels."""
             self.device_index: int = device_index
             self.freq_unit = freq_unit
             self.var_chan_num = tk.IntVar(value=1)
             self.max_chan_num = tk.IntVar(value=1)
 
-            # 配置：底层仪器实例、VISA 地址、设备类型/名称（
+            # Instrument configuration: low-level instance, VISA address, device type/name.
             self.instrument: InstrumentBase = None
             self.visa_address: str = ""
             self.var_device_type = tk.StringVar(value="")
             self.var_device_name = tk.StringVar(value="")
-            self.var_device_name.trace_add("write", self.track_device_name)  # 名称变更→重建实例并更新通道
+            self.var_device_name.trace_add("write", self.track_device_name)  # Rebuild instrument when the model name changes.
 
-            # 通道集合：按通道号索引
+            # Channel collection, keyed by channel number.
             self.channel_dict: dict[int, ChannelBase] = {}
 
-            # VISA 地址相关：自动/手动（LAN）两种模式，任一变化即尝试拼装/更新地址
+            # VISA address inputs: auto/manual (LAN) modes trigger address rebuilds.
             self.var_switch_auto_lan = tk.StringVar(value="")
             self.var_switch_auto_lan.trace_add("write", self.trace_visa_address)
             self.var_auto_visa_address = tk.StringVar(value="")
             self.var_auto_visa_address.trace_add("write", self.trace_visa_address)
 
-            # LAN IP 四段输入
+            # LAN IPv4 octets.
             lan_visa_address_1 = tk.StringVar(value="")
             lan_visa_address_1.trace_add("write", lambda *args: self.trace_visa_address())
             lan_visa_address_2 = tk.StringVar(value="")
@@ -46,7 +46,7 @@ class DeviceManager:
             self.var_lan_ip_list = [lan_visa_address_1, lan_visa_address_2,  lan_visa_address_3, lan_visa_address_4]
 
         def track_device_name(self, *args):
-            """设备名称变更回调：重建底层实例并同步到所有通道"""
+            """When the device model changes, rebuild the instrument and update all channels."""
             from ui import UI
             inst = equips.inst_mapping[self.var_device_name.get()]
             self.max_chan_num.set(inst.chan_num)
@@ -57,7 +57,7 @@ class DeviceManager:
                 channel.set_inst(self.instrument)
 
         def create_chan(self):
-            """功能：按当前设备类型与通道数，补齐缺失的通道对象（已存在的不重复创建）"""
+            """Create any missing channels for the current device type without duplicating entries."""
             if self.var_device_type.get() == Mapping.label_for_device_type_awg:
                 for channel_tag in range(1, self.var_chan_num.get()+1):
                     if channel_tag not in self.channel_dict:
@@ -69,21 +69,21 @@ class DeviceManager:
                         self.channel_dict[channel_tag] = OSC_Channel(chan_index=channel_tag, freq_unit=self.freq_unit)
         
         def find_channel(self, chan_index: int = None, chan_tag: int=None) -> Union[AWG_Channel, OSC_Channel]:
-            """功能: 按通道索引值 (chan_index) 或键 (chan_tag) 查找通道对象；未找到抛异常。"""
+            """Look up a channel by chan_index or dictionary key; raise if not found."""
             if chan_index is not None:
                 for chan in self.channel_dict.values():
                     if chan.chan_index.get() == chan_index: 
                         return chan
-                raise ValueError(f"{self.device_index}未找到{chan_index}号通道")
+                raise ValueError(f"Device {self.device_index} does not have channel {chan_index}")
             
             if chan_tag is not None:
                 try:
                     return self.channel_dict[chan_tag]
                 except KeyError as e:
-                    raise KeyError (f"{self.device_index}未找到{chan_tag}号通道") from e
+                    raise KeyError (f"Device {self.device_index} does not have channel tag {chan_tag}") from e
 
         def trace_visa_address(self, *args):
-            """功能：根据自动/手动模式拼接 VISA 地址并更新仪器与通道绑定"""
+            """Rebuild the VISA address per auto/LAN mode and propagate it to the instrument and channels."""
             from ui import UI
             var_auto = self.var_auto_visa_address.get().replace(" ","")
             var_lan = (
@@ -96,7 +96,7 @@ class DeviceManager:
             auto_selected = self.var_switch_auto_lan.get() == Mapping.label_for_auto
             lan_selected = self.var_switch_auto_lan.get() == Mapping.label_for_lan
 
-            # 条件：四段 LAN IP 都非空且选择 LAN；或自动地址非空且选择 AUTO
+            # Conditions: LAN mode requires all four octets; AUTO mode requires the auto address field.
             lan_visa_address_typed = (self.var_lan_ip_list[0].get().rstrip('\n') and
                                             self.var_lan_ip_list[1].get().rstrip('\n') and
                                             self.var_lan_ip_list[2].get().rstrip('\n') and
@@ -104,33 +104,33 @@ class DeviceManager:
                                             lan_selected)
             auto_visa_address_typed = var_auto and auto_selected
 
-            # 生成 VISA 地址（LAN 优先用 TCPIP 规范；AUTO 直接使用输入）
+            # Construct the VISA address (LAN -> TCPIP form; AUTO -> raw input).
             if lan_visa_address_typed or auto_visa_address_typed:
                 self.visa_address = f"TCPIP0::{var_lan}::INSTR" if lan_selected else var_auto
 
-            # 变更地址后重建底层实例并同步到所有通道
+            # Rebuild the instrument and update channels whenever the address changes.
             self.instrument = equips.inst_mapping[self.var_device_name.get()](name=self.var_device_name.get(), visa_address=self.visa_address)
             for channel in self.channel_dict.values():
                 channel.VisaAddress = self.visa_address
                 channel.set_inst(self.instrument)
     
     def __init__(self):
-        """功能：设备列表管理（多台设备的容器）"""
+        """Manage a list of devices (container for multiple instruments)."""
         self.device_list: List[DeviceManager.device_info] = []
 
     def create_devices(self, device_num: int, freq_unit: tk.StringVar):
-        """功能：根据数量创建/裁剪设备实例；复用频率单位变量"""
+        """Create or trim device instances to match device_num, reusing the same freq_unit."""
         while len(self.device_list) < device_num:
             self.device_list.append(DeviceManager.device_info(device_index=(len(self.device_list) + 1), freq_unit=freq_unit))
         while len(self.device_list) > device_num:
             self.device_list.pop()
 
     def find_device(self, device_index: int) -> DeviceManager.device_info:
-        """功能：按设备序号查找设备对象"""
+        """Find a device object by its index."""
         for device in self.device_list:
             if device.device_index == device_index:
                 return device
 
     def get_devices(self) -> List[DeviceManager.device_info]:
-        """功能：返回所有设备对象列表"""
+        """Return the list of device objects."""
         return self.device_list
