@@ -1,0 +1,11 @@
+requests
+PyGithub
+pyinstaller
+numpy
+scipy
+matplotlib
+mplcursors
+pyvisa
+pyserial
+pyvisa-py
+importlib-metadata; python_version < "3.8"
