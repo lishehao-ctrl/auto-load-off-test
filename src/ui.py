@@ -1371,11 +1371,11 @@ If the variable is currently empty, automatically select the first one (optional
 
                 norm_callback = _norm_step_freq
 
-            lb_step = tk.Label(frame_set_step_freq, text=lb_text)
-            lb_step.grid(row=0, column=0, sticky=tk.E, padx=5, pady=2)
+            lb_step = tk.Label(frame_awg_param_grid, text=lb_text)
+            lb_step.grid(row=awg_step_row, column=0, sticky=tk.W, padx=5, pady=2)
 
-            etr = tk.Entry(frame_set_step_freq, textvariable=entry_var, width=10)
-            etr.grid(row=0, column=1, sticky=tk.W, padx=5, pady=2)
+            etr = tk.Entry(frame_awg_param_grid, textvariable=entry_var, width=10)
+            etr.grid(row=awg_step_row, column=1, sticky=tk.W, padx=5, pady=2)
 
             etr.bind("<FocusOut>", norm_callback)
             etr.bind("<Return>",   norm_callback)
@@ -1453,7 +1453,7 @@ If the variable is currently empty, automatically select the first one (optional
         frame_awg_name = tk.Frame(frame_awg_visa_address)
         frame_awg_name.pack(anchor=tk.W)
 
-        lb_awg_visa_address = tk.Label(frame_awg_name, text=f"#{Mapping.label_for_device_type_awg}")
+        lb_awg_visa_address = tk.Label(frame_awg_name, text=f"#{self.awg_device.device_index}: {Mapping.label_for_device_type_awg}")
         lb_awg_visa_address.pack(side=tk.LEFT, padx=5)
 
         cmb_awg_device_name = ttk.Combobox(
@@ -1533,7 +1533,7 @@ If the variable is currently empty, automatically select the first one (optional
         frame_osc_name = tk.Frame(frame_osc_visa_address)
         frame_osc_name.pack(anchor=tk.W)
 
-        lb_osc_visa_address = tk.Label(frame_osc_name, text=f"#{self.osc_device.device_index}: {Mapping.label_for_auto_lan}")
+        lb_osc_visa_address = tk.Label(frame_osc_name, text=f"#{self.osc_device.device_index}: {Mapping.label_for_device_type_osc}")
         lb_osc_visa_address.pack(side=tk.LEFT, padx=5)
 
         cmb_osc_device_name = ttk.Combobox(
@@ -1623,91 +1623,84 @@ If the variable is currently empty, automatically select the first one (optional
         lb_frame_awg_channel_tag.pack(anchor=tk.W)
         self.awg_device.var_device_name.trace_add("write", trace_awg_name)
 
+        frame_awg_param_grid = tk.Frame(frame_awg_setting)
+        frame_awg_param_grid.pack(anchor=tk.W, fill=tk.X)
+        frame_awg_param_grid.grid_columnconfigure(1, weight=1)
+
+        awg_param_row = 0
+
         # Channel selection
-        frame_awg_channel_index = tk.Frame(frame_awg_setting)
-        frame_awg_channel_index.pack(anchor=tk.W)
+        lb_awg_channel_index = tk.Label(frame_awg_param_grid, text=Mapping.label_for_chan_index)
+        lb_awg_channel_index.grid(row=awg_param_row, column=0, sticky=tk.W, padx=5, pady=2)
 
         cmb_awg_channel_index = ttk.Combobox(
-            frame_awg_channel_index,
+            frame_awg_param_grid,
             textvariable=self.test.awg.chan_index,
             values=list(range(1, self.awg_device.max_chan_num.get() + 1)),
             width=5
         )
-        cmb_awg_channel_index.pack(side=tk.LEFT, padx=5)
+        cmb_awg_channel_index.grid(row=awg_param_row, column=1, sticky=tk.W, padx=5, pady=2)
         self.awg_device.max_chan_num.trace_add("write", trace_awg_chan_num)
-
-        lb_awg_channel_index = tk.Label(frame_awg_channel_index, text=Mapping.label_for_chan_index)
-        lb_awg_channel_index.pack(side=tk.LEFT)
+        awg_param_row += 1
 
         # starting frequency
-        frame_set_freq_start = tk.Frame(frame_awg_setting)
-        frame_set_freq_start.pack(anchor=tk.W)
-        frame_set_freq_start.grid_columnconfigure(1, weight=1)
+        lb_set_start_freq = tk.Label(frame_awg_param_grid, text=f"{Mapping.label_for_set_start_frequency}: ")
+        lb_set_start_freq.grid(row=awg_param_row, column=0, sticky=tk.W, padx=5, pady=2)
 
-        lb_set_start_freq = tk.Label(frame_set_freq_start, text=f"{Mapping.label_for_set_start_frequency}: ")
-        lb_set_start_freq.grid(row=0, column=0, sticky=tk.E, padx=5, pady=2)
-
-        etr_set_start_freq = tk.Entry(frame_set_freq_start, textvariable=self.test.awg.start_freq, width=10)
-        etr_set_start_freq.grid(row=0, column=1, sticky=tk.W, padx=5, pady=2)
+        etr_set_start_freq = tk.Entry(frame_awg_param_grid, textvariable=self.test.awg.start_freq, width=10)
+        etr_set_start_freq.grid(row=awg_param_row, column=1, sticky=tk.W, padx=5, pady=2)
         etr_set_start_freq.bind("<FocusOut>", lambda e: TraceVal.freq_out_focus(freq=self.test.awg.start_freq))
         etr_set_start_freq.bind("<Return>",   lambda e: TraceVal.freq_out_focus(freq=self.test.awg.start_freq))
+        awg_param_row += 1
 
         # Termination frequency
-        frame_set_freq_end = tk.Frame(frame_awg_setting)
-        frame_set_freq_end.pack(anchor=tk.W)
-        frame_set_freq_end.grid_columnconfigure(1, weight=1)
+        lb_set_stop_freq = tk.Label(frame_awg_param_grid, text=f"{Mapping.label_for_set_stop_frequency}: ")
+        lb_set_stop_freq.grid(row=awg_param_row, column=0, sticky=tk.W, padx=5, pady=2)
 
-        lb_set_stop_freq = tk.Label(frame_set_freq_end, text=f"{Mapping.label_for_set_stop_frequency}: ")
-        lb_set_stop_freq.grid(row=0, column=0, sticky=tk.E, padx=5, pady=2)
-
-        etr_set_stop_freq = tk.Entry(frame_set_freq_end, textvariable=self.test.awg.stop_freq, width=10)
-        etr_set_stop_freq.grid(row=0, column=1, sticky=tk.W, padx=5, pady=2)
+        etr_set_stop_freq = tk.Entry(frame_awg_param_grid, textvariable=self.test.awg.stop_freq, width=10)
+        etr_set_stop_freq.grid(row=awg_param_row, column=1, sticky=tk.W, padx=5, pady=2)
         etr_set_stop_freq.bind("<FocusOut>", lambda e: (TraceVal.force_positive_out_focus(var=self.test.awg.stop_freq),
                                                         TraceVal.freq_out_focus(freq=self.test.awg.stop_freq)))
         etr_set_stop_freq.bind("<Return>",   lambda e: (TraceVal.force_positive_out_focus(var=self.test.awg.stop_freq),
                                                         TraceVal.freq_out_focus(freq=self.test.awg.stop_freq)))
+        awg_param_row += 1
 
         # step size
-        frame_set_step_freq = tk.Frame(frame_awg_setting)
-        frame_set_step_freq.pack(anchor=tk.W)
-        frame_set_step_freq.grid_columnconfigure(1, weight=1)
+        awg_step_row = awg_param_row
+        awg_param_row += 1
         trace_step_widgets = []
         self.test.awg.is_log_freq_enabled.trace_add("write", trace_log_freq)
         # first render
         trace_log_freq()
 
         # Amplitude
-        frame_set_amp = tk.Frame(frame_awg_setting)
-        frame_set_amp.pack(anchor=tk.W)
-        frame_set_amp.grid_columnconfigure(1, weight=1)
+        lb_set_amp = tk.Label(frame_awg_param_grid, text=f"{Mapping.label_for_set_amp}: ")
+        lb_set_amp.grid(row=awg_param_row, column=0, sticky=tk.W, padx=5, pady=2)
 
-        lb_set_amp = tk.Label(frame_set_amp, text=f"{Mapping.label_for_set_amp}: ")
-        lb_set_amp.grid(row=0, column=0, sticky=tk.E, padx=5, pady=2)
-
-        etr_set_amp = tk.Entry(frame_set_amp, textvariable=self.test.awg.amp, width=10)
-        etr_set_amp.grid(row=0, column=1, sticky=tk.W, padx=5, pady=2)
+        etr_set_amp = tk.Entry(frame_awg_param_grid, textvariable=self.test.awg.amp, width=10)
+        etr_set_amp.grid(row=awg_param_row, column=1, sticky=tk.W, padx=5, pady=2)
         etr_set_amp.bind("<FocusOut>", lambda e: (TraceVal.force_positive_out_focus(var=self.test.awg.amp),
                                                 TraceVal.vpp_out_focus(vpp=self.test.awg.amp)))
         etr_set_amp.bind("<Return>",   lambda e: (TraceVal.force_positive_out_focus(var=self.test.awg.amp),
                                                 TraceVal.vpp_out_focus(vpp=self.test.awg.amp)))
+        awg_param_row += 1
 
         # Output impedance (R50 / high impedance)
-        frame_set_awg_imp = tk.Frame(frame_awg_setting)
-        frame_set_awg_imp.pack(anchor=tk.W)
-        frame_set_awg_imp.grid_columnconfigure(2, weight=1)
+        lb_set_awg_imp = tk.Label(frame_awg_param_grid, text=f"{Mapping.label_for_set_imp}: ")
+        lb_set_awg_imp.grid(row=awg_param_row, column=0, sticky=tk.W, padx=5, pady=2)
 
-        lb_set_awg_imp = tk.Label(frame_set_awg_imp, text=f"{Mapping.label_for_set_imp}: ")
-        lb_set_awg_imp.grid(row=0, column=0, sticky=tk.E, padx=5, pady=2)
+        frame_set_awg_imp = tk.Frame(frame_awg_param_grid)
+        frame_set_awg_imp.grid(row=awg_param_row, column=1, sticky=tk.W, padx=5, pady=2)
 
         rb_btn_set_awg_imp_r50 = tk.Radiobutton(
             frame_set_awg_imp, text=Mapping.label_for_imp_r50, variable=self.test.awg.imp, value=Mapping.mapping_imp_r50
         )
-        rb_btn_set_awg_imp_r50.grid(row=0, column=1, sticky=tk.W, padx=5, pady=2)
+        rb_btn_set_awg_imp_r50.pack(side=tk.LEFT, padx=(0, 5))
 
         rb_btn_set_awg_imp_inf = tk.Radiobutton(
             frame_set_awg_imp, text=Mapping.label_for_imp_inf, variable=self.test.awg.imp, value=Mapping.mapping_imp_high_z
         )
-        rb_btn_set_awg_imp_inf.grid(row=0, column=2, sticky=tk.W, padx=5, pady=2)
+        rb_btn_set_awg_imp_inf.pack(side=tk.LEFT)
 
 
         # ======================= OSC (oscilloscope) setting area =======================
@@ -1722,47 +1715,45 @@ If the variable is currently empty, automatically select the first one (optional
         lb_frame_osc_channel_tag.pack(anchor=tk.W)
         self.osc_device.var_device_name.trace_add("write", trace_osc_name)
 
+        frame_osc_param_grid = tk.Frame(frame_osc_setting)
+        frame_osc_param_grid.pack(anchor=tk.W, fill=tk.X)
+        frame_osc_param_grid.grid_columnconfigure(1, weight=1)
+
+        osc_param_row = 0
+
         # —— Channel index —— #
-        frame_osc_channel_index = tk.Frame(frame_osc_setting)
-        frame_osc_channel_index.pack(anchor=tk.W)
+        lb_osc_channel_index = tk.Label(frame_osc_param_grid, text=f"{Mapping.label_for_chan_index}: ")
+        lb_osc_channel_index.grid(row=osc_param_row, column=0, sticky=tk.W, padx=5, pady=2)
 
         cmb_osc_channel_index = ttk.Combobox(
-            frame_osc_channel_index,
+            frame_osc_param_grid,
             textvariable=self.test.osc_test.chan_index,
             values=list(range(1, self.osc_device.max_chan_num.get() + 1)),
             width=5
         )
-        cmb_osc_channel_index.pack(side=tk.LEFT, padx=5)
+        cmb_osc_channel_index.grid(row=osc_param_row, column=1, sticky=tk.W, padx=5, pady=2)
         self.osc_device.max_chan_num.trace_add("write", trace_osc_chan_num)
-
-        lb_osc_channel_index = tk.Label(frame_osc_channel_index, text=Mapping.label_for_chan_index)
-        lb_osc_channel_index.pack(side=tk.LEFT)
+        osc_param_row += 1
 
         # ——Coupling method (AC/DC, etc.)—— #
-        frame_osc_coup = tk.Frame(frame_osc_setting)
-        frame_osc_coup.pack(anchor=tk.W)
-
-        lb_osc_coup = tk.Label(frame_osc_coup, text=f"{Mapping.label_for_coup}: ")
-        lb_osc_coup.pack(side=tk.LEFT, padx=5)
+        lb_osc_coup = tk.Label(frame_osc_param_grid, text=f"{Mapping.label_for_coup}: ")
+        lb_osc_coup.grid(row=osc_param_row, column=0, sticky=tk.W, padx=5, pady=2)
 
         cmb_osc_coup = ttk.Combobox(
-            frame_osc_coup,
+            frame_osc_param_grid,
             textvariable=self.test.osc_test.coupling,
             values=Mapping.values_coup,
             width=5
         )
-        cmb_osc_coup.pack(side=tk.LEFT, padx=5)
+        cmb_osc_coup.grid(row=osc_param_row, column=1, sticky=tk.W, padx=5, pady=2)
+        osc_param_row += 1
 
         # —— Full scale —— #
-        frame_osc_range = tk.Frame(frame_osc_setting)
-        frame_osc_range.pack(anchor=tk.W)
-        frame_osc_range.grid_columnconfigure(1, weight=1)
+        lb_osc_range = tk.Label(frame_osc_param_grid, text=f"{Mapping.label_for_range}: ")
+        lb_osc_range.grid(row=osc_param_row, column=0, sticky=tk.W, padx=5, pady=2)
 
-        lb_osc_range = tk.Label(frame_osc_range, text=Mapping.label_for_range)
-        lb_osc_range.grid(row=0, column=0, sticky=tk.E, padx=5, pady=2)
-
-        etr_osc_range = tk.Entry(frame_osc_range, textvariable=self.test.osc_test.range, width=10)
-        etr_osc_range.grid(row=0, column=1, sticky=tk.W, padx=5, pady=2)
+        etr_osc_range = tk.Entry(frame_osc_param_grid, textvariable=self.test.osc_test.range, width=10)
+        etr_osc_range.grid(row=osc_param_row, column=1, sticky=tk.W, padx=5, pady=2)
         # Normalization: Range should be a positive number
         etr_osc_range.bind(
             "<FocusOut>",
@@ -1774,31 +1765,25 @@ If the variable is currently empty, automatically select the first one (optional
             lambda e: (TraceVal.force_positive_out_focus(var=self.test.osc_test.range),
                     TraceVal.volts_out_focus(curr=self.test.osc_test.range))  
         )
+        osc_param_row += 1
 
         # —— Center display voltage —— #
-        frame_osc_yoffset = tk.Frame(frame_osc_setting)
-        frame_osc_yoffset.pack(anchor=tk.W)
-        frame_osc_yoffset.grid_columnconfigure(1, weight=1)
+        lb_osc_yoffset = tk.Label(frame_osc_param_grid, text=f"{Mapping.label_for_yoffset}: ")
+        lb_osc_yoffset.grid(row=osc_param_row, column=0, sticky=tk.W, padx=5, pady=2)
 
-        lb_osc_yoffset = tk.Label(frame_osc_yoffset, text=Mapping.label_for_yoffset)
-        lb_osc_yoffset.grid(row=0, column=0, sticky=tk.E, padx=5, pady=2)
-
-        etr_osc_yoffset = tk.Entry(frame_osc_yoffset, textvariable=self.test.osc_test.yoffset, width=10)
-        etr_osc_yoffset.grid(row=0, column=1, sticky=tk.W, padx=5, pady=2)
+        etr_osc_yoffset = tk.Entry(frame_osc_param_grid, textvariable=self.test.osc_test.yoffset, width=10)
+        etr_osc_yoffset.grid(row=osc_param_row, column=1, sticky=tk.W, padx=5, pady=2)
         # Normalization: Positive numbers are not enforced here (negative values ​​are allowed for bias)
         etr_osc_yoffset.bind("<FocusOut>", lambda e: TraceVal.volts_out_focus(curr=self.test.osc_test.yoffset)) 
         etr_osc_yoffset.bind("<Return>",   lambda e: TraceVal.volts_out_focus(curr=self.test.osc_test.yoffset))
+        osc_param_row += 1
 
         # —— Number of sampling points —— #
-        frame_osc_points = tk.Frame(frame_osc_setting)
-        frame_osc_points.pack(anchor=tk.W)
-        frame_osc_points.grid_columnconfigure(1, weight=1)
+        lb_osc_points = tk.Label(frame_osc_param_grid, text=f"{Mapping.label_for_points}: ")
+        lb_osc_points.grid(row=osc_param_row, column=0, sticky=tk.W, padx=5, pady=2)
 
-        lb_osc_points = tk.Label(frame_osc_points, text=Mapping.label_for_points)
-        lb_osc_points.grid(row=0, column=0, sticky=tk.E, padx=5, pady=2)
-
-        etr_osc_points = tk.Entry(frame_osc_points, textvariable=self.test.osc_test.points, width=10)
-        etr_osc_points.grid(row=0, column=1, sticky=tk.W, padx=5, pady=2)
+        etr_osc_points = tk.Entry(frame_osc_param_grid, textvariable=self.test.osc_test.points, width=10)
+        etr_osc_points.grid(row=osc_param_row, column=1, sticky=tk.W, padx=5, pady=2)
         # Normalization: positive integers, common numeric format
 
         etr_osc_points.bind(
@@ -1817,14 +1802,14 @@ If the variable is currently empty, automatically select the first one (optional
                 TraceVal.force_positive_out_focus(var=self.test.osc_test.points)
             )
         )
+        osc_param_row += 1
 
         # ——Input impedance (R50 / high impedance)—— #
-        frame_set_osc_imp = tk.Frame(frame_osc_setting)
-        frame_set_osc_imp.pack(anchor=tk.W)
-        frame_set_osc_imp.grid_columnconfigure(2, weight=1)
+        lb_set_osc_imp = tk.Label(frame_osc_param_grid, text=f"{Mapping.label_for_set_imp}: ")
+        lb_set_osc_imp.grid(row=osc_param_row, column=0, sticky=tk.W, padx=5, pady=2)
 
-        lb_set_osc_imp = tk.Label(frame_set_osc_imp, text=f"{Mapping.label_for_set_imp}: ")
-        lb_set_osc_imp.grid(row=0, column=0, sticky=tk.E, padx=5, pady=2)
+        frame_set_osc_imp = tk.Frame(frame_osc_param_grid)
+        frame_set_osc_imp.grid(row=osc_param_row, column=1, sticky=tk.W, padx=5, pady=2)
 
         rb_btn_set_osc_imp_r50 = tk.Radiobutton(
             frame_set_osc_imp,
@@ -1832,7 +1817,7 @@ If the variable is currently empty, automatically select the first one (optional
             variable=self.test.osc_test.imp,
             value=Mapping.mapping_imp_r50
         )
-        rb_btn_set_osc_imp_r50.grid(row=0, column=1, sticky=tk.W, padx=5, pady=2)
+        rb_btn_set_osc_imp_r50.pack(side=tk.LEFT, padx=(0, 5))
 
         rb_btn_set_osc_imp_inf = tk.Radiobutton(
             frame_set_osc_imp,
@@ -1840,7 +1825,8 @@ If the variable is currently empty, automatically select the first one (optional
             variable=self.test.osc_test.imp,
             value=Mapping.mapping_imp_high_z
         )
-        rb_btn_set_osc_imp_inf.grid(row=0, column=2, sticky=tk.W, padx=5, pady=2)
+        rb_btn_set_osc_imp_inf.pack(side=tk.LEFT)
+        osc_param_row += 1
 
 
     def auto_load_config(self):
