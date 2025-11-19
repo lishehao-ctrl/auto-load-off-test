@@ -18,6 +18,7 @@ Features include frequency sweeps, amplitude/impedance control, auto-range on th
 1. Install **NI-VISA Runtime** (required), then reboot if prompted.  
 2. Download `test_load_off.exe` from the **Releases** page and run it.
 > The EXE uses PyVISA with the system VISA backend. NI-VISA is **not** bundled; please install it first.
+> NI-VISA: https://www.ni.com/en/support/downloads/drivers/download.ni-visa.html?srsltid=AfmBOorMrN9x5ZrNZFlDwPCx0lpVfaa_viC1gB_cT9wIT8-3HmDhRyPg#575764
 
 
 
