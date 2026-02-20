@@ -1,28 +1,68 @@
-# LoadoffTest — Instrument Control GUI
+# LoadoffTest (Decoupled Architecture)
 
-A Python/Tkinter GUI to control an Arbitrary Waveform Generator (AWG) and an Oscilloscope via VISA (PyVISA).  
-Features include frequency sweeps, amplitude/impedance control, auto-range on the scope, plotting, and basic calibration.
+LoadoffTest is a Python desktop tool for AWG/OSC sweep measurement and calibration.
 
-## 🔌 Supported Instruments
-**AWGs**
-- Rigol DSG4102
-- Rigol DSG836 *(RF output only; 50 Ω output impedance)*
+This version is fully refactored into a layered architecture:
 
-**Oscilloscopes**
-- Tektronix MDO34
-- Tektronix MDO3024
-- Rigol DHO1202
-- Rigol DHO1204
+- `presentation` (Tkinter UI only)
+- `application` (use cases and event flow)
+- `domain` (pure business models and algorithms)
+- `infrastructure` (instrument adapters and persistence)
 
-## 🔽 Quick Start (Binary, Windows)
-1. Install **NI-VISA Runtime** (required), then reboot if prompted.  
-2. Download `test_load_off.exe` from the **Releases** page and run it.
-> The EXE uses PyVISA with the system VISA backend. NI-VISA is **not** bundled; please install it first.
+## Project Layout
 
-> NI-VISA: https://www.ni.com/en/support/downloads/drivers/download.ni-visa.html?srsltid=AfmBOorMrN9x5ZrNZFlDwPCx0lpVfaa_viC1gB_cT9wIT8-3HmDhRyPg#575764
+```text
+src/
+  main.py
+  app/
+    presentation/tk/
+    application/
+    domain/
+    infrastructure/
+```
 
+Legacy coupled modules (`src/ui.py`, `src/test.py`, `src/channel.py`, `src/deviceMng.py`) are removed.
 
+## Run
 
-### 🎥 Demo Video  
-Click the [**image**](https://youtu.be/mykzLSdMx8w) below to watch a quick demonstration of *LoadoffTest* in action:
-[![Watch the video](https://img.youtube.com/vi/mykzLSdMx8w/sddefault.jpg)](https://youtu.be/mykzLSdMx8w?si=-zHm-ErftVF0S7o9)
+```bash
+python3 src/main.py
+```
+
+## Configuration
+
+Settings are stored in JSON:
+
+- `__config__/settings.json`
+
+Schema version is tracked in the settings payload (`schema_version`).
+
+## Output Files
+
+Save operation writes:
+
+- `*.mat`
+- `*.csv`
+- `*.txt`
+- plot images (`*_gain.png`, `*_gain_db.png`) when figure handles are provided
+
+## Testing
+
+Run automated tests:
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+Tests cover:
+
+- domain sweep generation
+- signal processing behavior
+- start-sweep use case event flow with mock ports
+- settings repository round-trip
+
+## Notes
+
+- The application remains local single-process.
+- No HTTP backend is introduced.
+- UI thread safety is enforced through event queue dispatch (`Tk.after`).
